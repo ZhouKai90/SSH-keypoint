@@ -43,16 +43,16 @@ config.TRAIN.ASPECT_GROUPING = True
 config.USE_MAXOUT = False
 
 # R-CNN
-# # rcnn rois batch size
-# config.TRAIN.BATCH_ROIS = 128
-# # rcnn rois sampling params
-# config.TRAIN.FG_FRACTION = 0.25
-# config.TRAIN.FG_THRESH = 0.5
-# config.TRAIN.BG_THRESH_HI = 0.3
-# config.TRAIN.BG_THRESH_LO = 0.0
-# # rcnn bounding box regression params
-# config.TRAIN.BBOX_REGRESSION_THRESH = 0.5
-# config.TRAIN.BBOX_WEIGHTS = np.array([1.0, 1.0, 1.0, 1.0])
+# rcnn rois batch size
+config.TRAIN.BATCH_ROIS = 128
+# rcnn rois sampling params
+config.TRAIN.FG_FRACTION = 0.25
+config.TRAIN.FG_THRESH = 0.5
+config.TRAIN.BG_THRESH_HI = 0.3
+config.TRAIN.BG_THRESH_LO = 0.0
+# rcnn bounding box regression params
+config.TRAIN.BBOX_REGRESSION_THRESH = 0.5
+config.TRAIN.BBOX_WEIGHTS = np.array([1.0, 1.0, 1.0, 1.0])
 
 # RPN anchor loader
 # rpn anchors batch size
@@ -129,6 +129,9 @@ default.gpus = '0,1'
 default.network = 'ssh'
 default.symbol = 'symbol_ssh'
 default.pretrained = 'model/vgg16'
+#for continue training
+default.resume = True
+default.begin_epoch = 62
 
 default.pretrained_epoch = 0
 default.base_lr = 0.001
@@ -160,6 +163,7 @@ default.rpn_lr_step = '2'
 
 # network settings
 network = edict()
+network.ssh = edict()
 def generate_config(_network, _dataset):
     for k, v in network[_network].items():
         if k in config:

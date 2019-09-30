@@ -182,12 +182,12 @@ def train_net(args, ctx, epoch, prefix, begin_epoch, end_epoch,
 		save_step[0] += 1
 		if save_step[0] % 5000 == 0:
 			save_model(save_step[0]/5000, mod, prefix)        #保存model
+			logger.info('lr: %f' % opt.lr)
 		for _iter in lr_iters:    #达到一定的batch_iter之后，降低学习率
 			if mbatch == _iter:
 				opt.lr *= 0.8
 				logger.info('lr change to', opt.lr, ' in batch', mbatch, file=sys.stderr)
 				break
-		logger.info('lr: ', opt.lr)
 		#到最后一次迭代之后保存好model然后退出
 		if mbatch == lr_iters[-1]:
 			logger.info('saving final checkpoint', mbatch, file=sys.stderr)
@@ -222,13 +222,13 @@ def parse_args():
 	parser.add_argument('--work_load_list', help='work load for different devices', default=None, type=list)
 	parser.add_argument('--no_flip', help='disable flip images', action='store_true')
 	parser.add_argument('--no_shuffle', help='disable random shuffle', action='store_true')
-	parser.add_argument('--resume', help='continue training', default=True, action='store_false')
+	parser.add_argument('--resume', help='continue training', default=default.resume, action='store_false')
 	# e2e
 	parser.add_argument('--gpus', help='GPU device to train with', default=default.gpus, type=str)
 	parser.add_argument('--pretrained', help='pretrained model prefix', default=default.pretrained, type=str)
 	parser.add_argument('--pretrained_epoch', help='pretrained model epoch', default=default.pretrained_epoch, type=int)
 	parser.add_argument('--prefix', help='new model prefix', default=default.e2e_prefix, type=str)
-	parser.add_argument('--begin_epoch', help='begin epoch of training, use with resume', default=4, type=int)
+	parser.add_argument('--begin_epoch', help='begin epoch of training, use with resume', default=default.begin_epoch, type=int)
 	parser.add_argument('--end_epoch', help='end epoch of training', default=default.e2e_epoch, type=int)
 	parser.add_argument('--lr', help='base learning rate', default=default.e2e_lr, type=float)
 	parser.add_argument('--lr_step', help='learning rate steps (in epoch)', default=default.e2e_lr_step, type=str)

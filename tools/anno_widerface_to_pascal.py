@@ -95,7 +95,7 @@ def writexml(filename,saveimg,bboxes,xmlpath):
  
  
 rootdir = "/kyle/workspace/dataset/public/widerface"
- 
+
 def convertimgset(img_set):
     imgdir = rootdir + "/WIDER_" + img_set + "/images"
     gtfilepath = rootdir + "/wider_face_split/wider_face_" + img_set + "_bbx_gt.txt"
