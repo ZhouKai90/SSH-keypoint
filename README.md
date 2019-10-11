@@ -30,5 +30,7 @@ This repository train and evaluate on the Mxnet, make sure your environment can 
 
 5. run `python train/train_ssh.py` for training.
 
+#### Test
+run `python demo/test.py`
    
 
