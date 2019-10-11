@@ -3,7 +3,10 @@
 
 This repository includes the training and evaluating code for the SSH face detector introduced in the [ICCV 2017](https://arxiv.org/abs/1708.03979) paper. Moreover, we achieved 5 keypoints prediction in this repository. 
 
-result
+#### result
+![](https://github.com/ZhouKai90/SSH-keypoint/blob/master/images/image1.jpg)
+![](https://github.com/ZhouKai90/SSH-keypoint/blob/master/images/image2.jpg)
+![](https://github.com/ZhouKai90/SSH-keypoint/blob/master/images/image3.jpg)
 
 #### Train
 
@@ -27,5 +30,7 @@ This repository train and evaluate on the Mxnet, make sure your environment can 
 
 5. run `python train/train_ssh.py` for training.
 
+#### Test
+run `python demo/test.py`
    
 
