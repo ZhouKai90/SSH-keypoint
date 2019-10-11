@@ -35,40 +35,62 @@ def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
 						 for i in range(ratio_anchors.shape[0])])
 	return anchors
 
-#def generate_anchors_fpn(base_size=[64,32,16,8,4], ratios=[0.5, 1, 2], scales=8):
-#    """
-#    Generate anchor (reference) windows by enumerating aspect ratios X
-#    scales wrt a reference (0, 0, 15, 15) window.
-#    """
-#    anchors = []
-#    _ratios = ratios.reshape( (len(base_size), -1) )
-#    _scales = scales.reshape( (len(base_size), -1) )
-#    for i,bs in enumerate(base_size):
-#      __ratios = _ratios[i]
-#      __scales = _scales[i]
-#      #print('anchors_fpn', bs, __ratios, __scales, file=sys.stderr)
-#      r = generate_anchors(bs, __ratios, __scales)
-#      #print('anchors_fpn', r.shape, file=sys.stderr)
-#      anchors.append(r)
-#    return anchors
+def generate_anchors_fpn(base_size=[64,32,16,8,4], ratios=[0.5, 1, 2], scales=8):
+   """
+   Generate anchor (reference) windows by enumerating aspect ratios X
+   scales wrt a reference (0, 0, 15, 15) window.
+   """
+   anchors = []
+   _ratios = ratios.reshape((len(base_size), -1))
+   _scales = scales.reshape((len(base_size), -1))
+   for i,bs in enumerate(base_size):
+     __ratios = _ratios[i]
+     __scales = _scales[i]
+     #print('anchors_fpn', bs, __ratios, __scales, file=sys.stderr)
+     r = generate_anchors(bs, __ratios, __scales)
+     #print('anchors_fpn', r.shape, file=sys.stderr)
+     anchors.append(r)
+   return anchors
 
-def generate_anchors_fpn():
-	#assert(False)
-	"""
-	Generate anchor (reference) windows by enumerating aspect ratios X
-	scales wrt a reference (0, 0, 15, 15) window.
-	"""
-	anchors = []
-	for k, v in config.RPN_ANCHOR_CFG.iteritems():
-		bs = v['BASE_SIZE']
-		__ratios = np.array(v['RATIOS'])
-		__scales = np.array(v['SCALES'])
-		#print('anchors_fpn', bs, __ratios, __scales, file=sys.stderr)
-		r = generate_anchors(bs, __ratios, __scales)
-		#print('anchors_fpn', r.shape, file=sys.stderr)
-		anchors.append(r)
+def generate_anchors_dense(base_size=16, ratios=[0.5, 1, 2],
+                     scales=2 ** np.arange(3, 6), ctr_offsets=[[0.5]]):
+    """
+    Generate anchor (reference) windows by enumerating aspect ratios X
+    scales wrt a reference (0, 0, 15, 15) window.
+    """
 
-	return anchors
+    base_anchor = np.array([1, 1, base_size, base_size]) - 1
+    ratio_anchors = _ratio_enum(base_anchor, ratios)
+    anchors_list = []
+    if len(scales.shape) == 0:
+        scales = np.array([scales])
+    for i in range(len(scales)):
+        scale = scales[i]
+        ctr_offset = ctr_offsets[i]
+        for y_ctr_offset in ctr_offset:
+            for x_ctr_offset in ctr_offset:
+                ## only one ratio_anchors , ratio = 1.0 for face
+                anchors_list.append(_scale_enum_dense(ratio_anchors[0, :], scale, x_ctr_offset, y_ctr_offset))
+    anchors = np.concatenate(anchors_list)
+    return anchors
+
+
+# def generate_anchors_fpn():
+# 	"""
+# 	Generate anchor (reference) windows by enumerating aspect ratios X
+# 	scales wrt a reference (0, 0, 15, 15) window.
+# 	"""
+# 	anchors = []
+# 	for k, v in config.RPN_ANCHOR_CFG.items():
+# 		bs = v['BASE_SIZE']
+# 		__ratios = np.array(v['RATIOS'])
+# 		__scales = np.array(v['SCALES'])
+# 		#print('anchors_fpn', bs, __ratios, __scales, file=sys.stderr)
+# 		r = generate_anchors(bs, __ratios, __scales)
+# 		#print('anchors_fpn', r.shape, file=sys.stderr)
+# 		anchors.append(r)
+#
+# 	return anchors
 
 def _whctrs(anchor):
 	"""
@@ -81,6 +103,16 @@ def _whctrs(anchor):
 	y_ctr = anchor[1] + 0.5 * (h - 1)
 	return w, h, x_ctr, y_ctr
 
+def _whctrs_dense(anchor, x_ctr_offset, y_ctr_offset):
+    """
+    Return width, height, x center, and y center for an anchor (window).
+    """
+
+    w = anchor[2] - anchor[0] + 1
+    h = anchor[3] - anchor[1] + 1
+    x_ctr = anchor[0] + x_ctr_offset * (w - 1)
+    y_ctr = anchor[1] + y_ctr_offset * (h - 1)
+    return w, h, x_ctr, y_ctr
 
 def _mkanchors(ws, hs, x_ctr, y_ctr):
 	"""
@@ -116,9 +148,23 @@ def _scale_enum(anchor, scales):
 	"""
 	Enumerate a set of anchors for each scale wrt an anchor.
 	"""
-
 	w, h, x_ctr, y_ctr = _whctrs(anchor)
+	# if len(scales.shape) == 0:
+	# 	scales = np.array([scales])
 	ws = w * scales
 	hs = h * scales
 	anchors = _mkanchors(ws, hs, x_ctr, y_ctr)
 	return anchors
+
+def _scale_enum_dense(anchor, scales, x_ctr_offset, y_ctr_offset):
+    """
+    Enumerate a set of anchors for each scale wrt an anchor.
+    """
+
+    w, h, x_ctr, y_ctr = _whctrs_dense(anchor, x_ctr_offset, y_ctr_offset)
+    if len(scales.shape) == 0:
+        scales = np.array([scales])
+    ws = w * scales
+    hs = h * scales
+    anchors = _mkanchors(ws, hs, x_ctr, y_ctr)
+    return anchors

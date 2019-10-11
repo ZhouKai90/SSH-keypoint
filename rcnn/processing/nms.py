@@ -20,7 +20,7 @@ def cpu_nms_wrapper(thresh):
 
 def gpu_nms_wrapper(thresh, device_id):
     def _nms(dets):
-        return gpu_nms(dets, thresh, device_id)
+        return gpu_nms(dets[:, 0:5], thresh, device_id)
     if gpu_nms is not None:
         return _nms
     else:
