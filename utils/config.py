@@ -26,6 +26,21 @@ config.RPN_ANCHOR_CFG = {
     '8': {'SCALES': (2, 1), 'BASE_SIZE': 16, 'RATIOS': (1,), 'NUM_ANCHORS': 2, 'ALLOWED_BORDER': 0},
 }
 
+# ### vgg16 && resnet18
+# config.RPN_ANCHOR_CFG = {
+#     '32': {'SCALES': (16, 8), 'BASE_SIZE': 32, 'RATIOS': (1,), 'NUM_ANCHORS': 2, 'ALLOWED_BORDER': 64, 'CENTER_OFFSET':[[0.5],[0.5]]},
+#     '16': {'SCALES': (8, 4), 'BASE_SIZE': 16, 'RATIOS': (1,), 'NUM_ANCHORS': 2, 'ALLOWED_BORDER': 32, 'CENTER_OFFSET':[[0.5],[0.5]]},
+#     '8': {'SCALES': (4, 2), 'BASE_SIZE': 8, 'RATIOS': (1,), 'NUM_ANCHORS': 2, 'ALLOWED_BORDER': 16, 'CENTER_OFFSET':[[0.5],[0.5]]},
+# }
+# ## symbol_ssh_3559a
+# config.RPN_FEAT_STRIDE = [8,16,32]
+# config.RPN_ANCHOR_CFG = {
+#     '8': {'SCALES': (2,4), 'BASE_SIZE': 8, 'RATIOS': (1,), 'NUM_ANCHORS': 2, 'ALLOWED_BORDER': 8, 'CENTER_OFFSET':[[0.5],[0.5]]},
+#     '16': {'SCALES': (4,8), 'BASE_SIZE': 16, 'RATIOS': (1,), 'NUM_ANCHORS': 2, 'ALLOWED_BORDER': 32, 'CENTER_OFFSET':[[0.5],[0.5]]},
+#     '32': {'SCALES': (8,16), 'BASE_SIZE': 32, 'RATIOS': (1,), 'NUM_ANCHORS': 2, 'ALLOWED_BORDER': 128, 'CENTER_OFFSET':[[0.5],[0.5]]},
+#
+# }
+
 config.BBOX_MASK_THRESH = 0
 config.COLOR_JITTERING = 0
 
@@ -129,16 +144,12 @@ default.gpus = '0,1'
 default.network = 'ssh'
 default.symbol = 'symbol_ssh'
 default.pretrained = 'model/vgg16'
-#for continue training
-default.resume = True
-default.begin_epoch = 62
 
-default.pretrained_epoch = 0
-default.base_lr = 0.001
+default.pretrained_epoch = 16
+default.base_lr = 0.0005
 # default dataset
 default.dataset = 'widerface'
 default.image_set = 'train'
-default.test_image_set = 'val'
 default.root_path = '/kyle/workspace/project/face-detection-SSH-mxnet'
 default.dataset_path = default.root_path + '/data/widerface'
 # default training
@@ -148,11 +159,21 @@ default.kvstore = 'device'
 default.e2e_prefix = 'model' + '/train/' + default.symbol
 default.e2e_epoch = 1000
 default.e2e_lr = default.base_lr
-default.e2e_lr_step = '100,400,600,800'
+default.e2e_lr_step = '50,100,400,600,800'
+
+#for continue training
+default.resume = True
+default.begin_epoch = 5
+
+#default test
+default.test_image_set = 'images/ori'
+default.test_prefix = 'model/deploy/' + default.symbol
+default.test_epoch = 12
+default.test_nms_threshold = 0.7
 
 # default rpn
 default.rpn_prefix = 'model/rpn'
-default.rpn_epoch = 62
+default.rpn_epoch = 12
 default.rpn_lr = default.base_lr
 default.rpn_lr_step = '2'
 # default rcnn

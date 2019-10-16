@@ -14,7 +14,7 @@ if not os.path.exists(save_result):
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-# logging.basicConfig(level = logging.DEBUG, format = LOG_FORMAT, datefmt = DATE_FORMAT)
+logging.basicConfig(level=logging.DEBUG, format=LOG_FORMAT, datefmt=DATE_FORMAT)
 
 #the file to write the log info
 s_handle = logging.StreamHandler()

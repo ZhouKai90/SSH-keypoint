@@ -150,12 +150,12 @@ def nonlinear_pred(boxes, box_deltas):
     dy = box_deltas[:, 1::4]
     dw = box_deltas[:, 2::4]
     dh = box_deltas[:, 3::4]
-
+	#网络的输出是用来做bounding box regression的target,所以要根据公式计算出预测的坐标位置
     pred_ctr_x = dx * widths[:, np.newaxis] + ctr_x[:, np.newaxis]
     pred_ctr_y = dy * heights[:, np.newaxis] + ctr_y[:, np.newaxis]
     pred_w = np.exp(dw) * widths[:, np.newaxis]
     pred_h = np.exp(dh) * heights[:, np.newaxis]
-
+	#将(center_x, cnter_y, w, h)转换为(x1, y1, x2, y2)
     pred_boxes = np.zeros(box_deltas.shape)
     # x1
     pred_boxes[:, 0::4] = pred_ctr_x - 0.5 * (pred_w - 1.0)
@@ -170,7 +170,7 @@ def nonlinear_pred(boxes, box_deltas):
 
 def kpoint_pred(boxes, point_deltas):
     """
-    Transform the set of class-agnostic boxes into class-specific boxes
+    Transform the set of class-agnostic key point into class-specific key point
     by applying the predicted offsets (box_deltas)
     :param boxes: !important [N 4]
     :param box_deltas: [N, 4 * num_classes]
@@ -198,8 +198,7 @@ def kpoint_pred(boxes, point_deltas):
     d5y = point_deltas[:, 9]
 
     pred_points = np.zeros(point_deltas.shape)
-    # x1
-    x = d1x * widths
+
     # print("aa", d1x.shape, widths.shape, ctr_x.shape, x.shape)
     pred_points[:, 0] = d1x * widths + ctr_x
     pred_points[:, 1] = d1y * heights + ctr_y

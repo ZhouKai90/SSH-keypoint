@@ -7,7 +7,7 @@ from rcnn.processing.bbox_transform import nonlinear_pred, clip_boxes, kpoint_pr
 from rcnn.processing.generate_anchor import *
 from rcnn.processing.nms import gpu_nms_wrapper
 from utils.config import config
-
+import datetime
 
 class SSHDetector:
     def __init__(self, prefix, epoch, ctx_id=1, test_mode=False):
@@ -30,26 +30,11 @@ class SSHDetector:
         self._ratios = np.array([1.0]*len(self.feat_strides))
         # self._anchors_fpn = dict(list(zip(self.keys, generate_anchors_fpn())))
         self._anchors_fpn = dict(list(zip(self.keys, generate_anchors_fpn(base_size=base_size, scales=self._scales, ratios=self._ratios))))
-        # self._anchors_fpn = dict()
-        # for i in range(len(self.feat_strides)):
-	    #     stride = self.feat_strides[i]
-	    #     sstride = str(stride)
-	    #     base_size = config.RPN_ANCHOR_CFG[sstride]['BASE_SIZE']
-	    #     allowed_border = config.RPN_ANCHOR_CFG[sstride]['ALLOWED_BORDER']
-	    #     ratios = config.RPN_ANCHOR_CFG[sstride]['RATIOS']
-	    #     scales = config.RPN_ANCHOR_CFG[sstride]['SCALES']
-	    #     # ctr_offsets = [[0.5], [0.5]]
-	    #     ctr_offsets = config.RPN_ANCHOR_CFG[sstride]['CENTER_OFFSET']
-	    #     base_anchors = generate_anchors_dense(base_size=base_size, ratios=list(ratios),
-	    #                                           scales=np.array(scales, dtype=np.float32), ctr_offsets=ctr_offsets)
-	    #     self._anchors_fpn["stride" + str(stride)] = base_anchors
 
         self._num_anchors = dict(zip(self.keys, [anchors.shape[0] for anchors in self._anchors_fpn.values()]))
         self._rpn_pre_nms_top_n = 1000
         #self._rpn_post_nms_top_n = rpn_post_nms_top_n
-        #self.score_threshold = 0.05
-        # self.nms_threshold = 0.9
-        self.nms_threshold = 0.3
+        self.nms_threshold = config.test_nms_threshold      #值越大，同一个人脸产生的预测框越多
         self._bbox_pred = nonlinear_pred
         sym, arg_params, aux_params = mx.model.load_checkpoint(prefix, epoch)
         self.nms = gpu_nms_wrapper(self.nms_threshold, self.ctx_id)
@@ -58,7 +43,7 @@ class SSHDetector:
 
         if not test_mode:
             image_size = (640, 640)
-            self.model = mx.mod.Module(symbol=sym, context=self.ctx, label_names = None)
+            self.model = mx.mod.Module(symbol=sym, context=self.ctx, label_names=None)
             self.model.bind(data_shapes=[('data', (1, 3, image_size[0], image_size[1]))], for_training=False)
             self.model.set_params(arg_params, aux_params)
         else:
@@ -90,16 +75,21 @@ class SSHDetector:
                 im_tensor[0, i, :, :] = im[:, :, 2 - i] - self.pixel_means[2 - i] #bgr2rgb  mxnet rgb  opencv bgr
             data = nd.array(im_tensor)
             db = mx.io.DataBatch(data=(data,), provide_data=[('data', data.shape)])
+            
+            timea = datetime.datetime.now()
             self.model.forward(db, is_train=False)
+            timeb = datetime.datetime.now()
+            diff = timeb - timea
+            print('forward uses', diff.total_seconds(), 'seconds')
+
             net_out = self.model.get_outputs()      #网络的输出为len=9的list,针对三个不同的stride,分为三大块的list,其中每个list分别代表score,bbox,kpoint三个维度的结果，
             pre_nms_topN = self._rpn_pre_nms_top_n
             #post_nms_topN = self._rpn_post_nms_top_n
             #min_size_dict = self._rpn_min_size_fpn
 
             for s in self.feat_strides:
-                if len(scales) > 1 and s == 32 and im_scale == scales[-1]:
-                    continue
                 _key = 'stride%s' % s
+                # print(_key)
                 stride = int(s)
                 if s == self.feat_strides[0]:
                     idx = 0
@@ -107,17 +97,14 @@ class SSHDetector:
                     idx = 3
                 elif s == self.feat_strides[2]:
                     idx = 6
-                print('getting', im_scale, stride, idx, len(net_out), data.shape, file=sys.stderr)
+                # print('getting', im_scale, stride, idx, len(net_out), data.shape, file=sys.stderr)
                 scores = net_out[idx].asnumpy()     #获取每个stride下的分类得分
+
                 idx += 1
-                #print('scores',stride, scores.shape, file=sys.stderr)
-                scores = scores[:, self._num_anchors['stride%s'%s]:, :, :]
+                # print('scores',stride, scores.shape, file=sys.stderr)
+                scores = scores[:, self._num_anchors['stride%s'%s]:, :, :]    #去掉了其中lable的值？？？
                 bbox_deltas = net_out[idx].asnumpy()
                 idx += 1
-                #if DEBUG:
-                #    print 'im_size: ({}, {})'.format(im_info[0], im_info[1])
-                #    print 'scale: {}'.format(im_info[2])
-
                 _height, _width = int(im_info[0] / stride), int(im_info[1] / stride)
                 height, width = bbox_deltas.shape[2], bbox_deltas.shape[3]
 
@@ -126,14 +113,13 @@ class SSHDetector:
 
                 A = self._num_anchors['stride%s' % s]
                 K = height * width
-
-                anchors = anchors_plane(height, width, stride, self._anchors_fpn['stride%s' % s].astype(np.float32))
-                #print((height, width), (_height, _width), anchors.shape, bbox_deltas.shape, scores.shape, file=sys.stderr)
+                anchors = anchors_plane(height, width, stride, self._anchors_fpn['stride%s' % s].astype(np.float32))       #RP映射回原图中的坐标位置
+                # print((height, width), (_height, _width), anchors.shape, bbox_deltas.shape, scores.shape, file=sys.stderr)
                 anchors = anchors.reshape((K * A, 4))
 
-                print('pre', bbox_deltas.shape, height, width)
+                # print('predict bbox_deltas', bbox_deltas.shape, height, width)
                 bbox_deltas = self._clip_pad(bbox_deltas, (height, width))
-                print('after', bbox_deltas.shape, height, width)
+                # print('after clip pad', bbox_deltas.shape, height, width)
                 bbox_deltas = bbox_deltas.transpose((0, 2, 3, 1)).reshape((-1, 4))
 
                 kpoint_deltas = self._clip_pad(kpoint_deltas, (height, width))
@@ -142,19 +128,13 @@ class SSHDetector:
                 scores = self._clip_pad(scores, (height, width))
                 scores = scores.transpose((0, 2, 3, 1)).reshape((-1, 1))
 
-                #print(anchors.shape, bbox_deltas.shape, A, K, file=sys.stderr)
+                # print(anchors.shape, bbox_deltas.shape, A, K, file=sys.stderr)
                 proposals = self._bbox_pred(anchors, bbox_deltas)
-                #proposals = anchors
+                proposals = clip_boxes(proposals, im_info[:2])  #将超出图像的坐标去除掉
 
-                proposals = clip_boxes(proposals, im_info[:2])
                 proposals_kp = kpoint_pred(anchors, kpoint_deltas)
                 proposals_kp = clip_points(proposals_kp, im_info[:2])
-
-                #keep = self._filter_boxes(proposals, min_size_dict['stride%s'%s] * im_info[2])
-                #proposals = proposals[keep, :]
-                #scores = scores[keep]
-                #print('333', proposals.shape)
-
+                #取出score的top N
                 scores_ravel = scores.ravel()
                 order = scores_ravel.argsort()[::-1]
                 if pre_nms_topN > 0:
